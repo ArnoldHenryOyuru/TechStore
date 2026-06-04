@@ -71,7 +71,7 @@ async function loadProducts() {
 function renderHeroCards() {
   const top = products.filter(p => p.badge === 'hot' || p.badge === 'new' || p.badge === 'sale').slice(0, 3);
   const show = top.length >= 3 ? top : products.slice(0, 3);
-  document.getElementById('hero-cards').innerHTML = show.map((p, i) => `
+  document.getElementById('hero-cards').innerHTML = show.map((p) => `
     <div class="feat-card" onclick="openModal(${products.indexOf(p)})">
       <div class="feat-icon">${imgTag(p.image_url, p.category)}</div>
       <div class="feat-info">
@@ -90,7 +90,7 @@ function renderProducts(list) {
     grid.innerHTML = `<div class="error-state"><div style="font-size:2rem">🔍</div><p>No products in this category yet.</p></div>`;
     return;
   }
-  grid.innerHTML = list.map((p) => {
+  grid.innerHTML = `<div class="products">${list.map((p) => {
     const idx = products.indexOf(p);
     const saved = savedItems.includes(idx);
     const pct = savings(p);
@@ -118,7 +118,7 @@ function renderProducts(list) {
         </div>
       </div>
     </div>`;
-  }).join('');
+  }).join('')}</div>`;
 }
 
 function filterCat(cat, el) {
@@ -126,6 +126,13 @@ function filterCat(cat, el) {
   if (el) {
     document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
     el.classList.add('active');
+  } else {
+    document.querySelectorAll('.chip').forEach(c => {
+      c.classList.toggle('active',
+        (cat === 'all' && c.textContent.trim() === 'All items') ||
+        (c.getAttribute('onclick') || '').includes(`'${cat}'`)
+      );
+    });
   }
   const labels = {all:'All products',phones:'Phones',laptops:'Laptops',audio:'Audio & Headphones',accessories:'Accessories',gaming:'Gaming',wearables:'Wearables'};
   document.getElementById('cat-label').textContent = labels[cat] || cat;
@@ -144,9 +151,19 @@ function applySort() {
 
 function toggleSave(idx, btn) {
   const already = savedItems.includes(idx);
-  if (already) { savedItems = savedItems.filter(i => i !== idx); btn.textContent = '🤍'; btn.classList.remove('active'); showToast('Removed from saved items'); }
-  else { savedItems.push(idx); btn.textContent = '❤️'; btn.classList.add('active'); showToast('Saved! View in cart →'); }
-  updateCartBadge(); updateCartSheet();
+  if (already) {
+    savedItems = savedItems.filter(i => i !== idx);
+    btn.textContent = '🤍';
+    btn.classList.remove('active');
+    showToast('Removed from saved items');
+  } else {
+    savedItems.push(idx);
+    btn.textContent = '❤️';
+    btn.classList.add('active');
+    showToast('Saved! View in cart →');
+  }
+  updateCartBadge();
+  updateCartSheet();
 }
 
 function updateCartBadge() {
@@ -160,15 +177,20 @@ function updateCartSheet() {
   const footer = document.getElementById('cart-footer');
   if (savedItems.length === 0) {
     container.innerHTML = `<div class="cart-empty"><div class="cart-empty-icon">🛒</div><p>No saved items yet.<br>Tap 🤍 on a product to save it.</p></div>`;
-    footer.style.display = 'none'; return;
+    footer.style.display = 'none';
+    return;
   }
   footer.style.display = 'block';
   let total = 0;
   container.innerHTML = savedItems.map(idx => {
-    const p = products[idx]; total += Number(p.price);
+    const p = products[idx];
+    total += Number(p.price);
     return `<div class="cart-item">
       <div class="ci-icon">${imgTag(p.image_url, p.category)}</div>
-      <div class="ci-info"><div class="ci-name">${p.brand} ${p.name}</div><div class="ci-price">${formatPrice(p.price)}</div></div>
+      <div class="ci-info">
+        <div class="ci-name">${p.brand} ${p.name}</div>
+        <div class="ci-price">${formatPrice(p.price)}</div>
+      </div>
       <button class="ci-remove" onclick="toggleSaveFromCart(${idx})">✕</button>
     </div>`;
   }).join('');
@@ -177,8 +199,9 @@ function updateCartSheet() {
 
 function toggleSaveFromCart(idx) {
   savedItems = savedItems.filter(i => i !== idx);
-  updateCartBadge(); updateCartSheet();
-  renderProducts(currentCat==='all'?[...products]:products.filter(p=>p.category===currentCat));
+  updateCartBadge();
+  updateCartSheet();
+  renderProducts(currentCat === 'all' ? [...products] : products.filter(p => p.category === currentCat));
 }
 
 function toggleCart() {
@@ -192,7 +215,7 @@ function toggleCart() {
 function orderCartOnWA() {
   const items = savedItems.map(i => products[i]);
   const lines = items.map(p => `• ${p.brand} ${p.name} — ${formatPrice(p.price)}`).join('\n');
-  const total = items.reduce((s,p) => s+Number(p.price), 0);
+  const total = items.reduce((s,p) => s + Number(p.price), 0);
   openWA(`Hi TechStore! I'd like to order:\n\n${lines}\n\nTotal: ${formatPrice(total)}\n\nPlease confirm availability and delivery. Thank you!`);
 }
 
@@ -240,20 +263,28 @@ function closeModal(e) {
   document.body.style.overflow = '';
 }
 
-function scrollToShop() { document.getElementById('shop').scrollIntoView({behavior:'smooth'}); }
+function scrollToShop() {
+  document.getElementById('shop').scrollIntoView({behavior:'smooth'});
+}
 
 let mobOpen = false;
 function toggleMob() {
   mobOpen = !mobOpen;
   const drawer = document.getElementById('mob-drawer');
-  if (mobOpen) { drawer.style.display='flex'; requestAnimationFrame(()=>drawer.classList.add('open')); }
-  else { drawer.classList.remove('open'); setTimeout(()=>{drawer.style.display='none'},250); }
+  if (mobOpen) {
+    drawer.style.display = 'flex';
+    requestAnimationFrame(() => drawer.classList.add('open'));
+  } else {
+    drawer.classList.remove('open');
+    setTimeout(() => { drawer.style.display = 'none'; }, 250);
+  }
 }
 
 function showToast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 2200);
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
 }
 
 loadProducts();
