@@ -73,12 +73,14 @@
   </div>
 </div>
 
-<!-- DELIVERY BANNER -->
-<div class="delivery-banner">
-  <div class="delivery-banner-inner">
-    <span class="delivery-banner-icon">🚚</span>
-    <span class="delivery-banner-text"><strong>Nationwide delivery</strong> — same-day in Kampala. Every phone brand new and IMEI verified. Pay by MTN or Airtel Mobile Money.</span>
+<!-- SPOTLIGHT -->
+<div class="spotlight" id="spotlight" onmouseenter="if(spotlightTimer)clearInterval(spotlightTimer)" onmouseleave="restartSpotlightAuto()">
+  <button class="spot-arrow spot-prev" onclick="spotlightPrev()" aria-label="Previous product">←</button>
+  <div class="spot-inner" id="spot-inner">
+    <div class="spot-loading"><div class="spinner"></div></div>
   </div>
+  <button class="spot-arrow spot-next" onclick="spotlightNext()" aria-label="Next product">→</button>
+  <div class="spot-dots" id="spot-dots"></div>
 </div>
 
 <!-- CATEGORY FILTER -->
