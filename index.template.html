@@ -3,30 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TechStore Kampala – Phones, Laptops &amp; Electronics in Uganda</title>
-  <meta name="google-site-verification" content="YGRLzzrGKny_I81TBs5YfOWVgIX7B2pk6nnU8oKpu2I" />
-  <meta name="description" content="Buy brand new, IMEI-verified phones, laptops and electronics in Kampala. Clear UGX prices, same-day Kampala delivery, nationwide shipping, Mobile Money.">
-  <link rel="canonical" href="https://www.techstoreug.com/">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="TechStore">
-  <meta property="og:locale" content="en_UG">
-  <meta property="og:title" content="TechStore Kampala – Phones, Laptops &amp; Electronics in Uganda">
-  <meta property="og:description" content="Buy brand new, IMEI-verified phones, laptops and electronics in Kampala. Clear UGX prices, same-day Kampala delivery, nationwide shipping, Mobile Money.">
-  <meta property="og:url" content="https://www.techstoreug.com/">
-  <meta property="og:image" content="https://www.techstoreug.com/og-image.png">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="TechStore Kampala – Phones, Laptops &amp; Electronics in Uganda">
-  <meta name="twitter:description" content="Buy brand new, IMEI-verified phones, laptops and electronics in Kampala. Clear UGX prices, same-day Kampala delivery, nationwide shipping, Mobile Money.">
-  <meta name="twitter:image" content="https://www.techstoreug.com/og-image.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"ElectronicsStore","@id":"https://www.techstoreug.com/#store","name":"TechStore","url":"https://www.techstoreug.com/","image":"https://www.techstoreug.com/og-image.png","telephone":"+256750533222","address":{"@type":"PostalAddress","streetAddress":"Ttowa Mall","addressLocality":"Kampala","addressCountry":"UG"},"areaServed":{"@type":"Country","name":"Uganda"},"currenciesAccepted":"UGX","paymentAccepted":"MTN Mobile Money, Airtel Money, Cash"}</script>
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"TechStore","url":"https://www.techstoreug.com/","inLanguage":"en-UG"}</script>
+{{HEAD}}
 </head>
-<body>
+<body{{BODY_ATTR}}>
 
 <!-- NAV -->
 <nav>
@@ -59,7 +38,7 @@
   <button class="mob-wa-btn" onclick="openWA('Hi TechStore! I\'d like to place an order.')">Order on WhatsApp</button>
 </div>
 
-
+<!--HOME_ONLY-->
 <!-- HERO -->
 <div class="hero">
   <div>
@@ -91,7 +70,7 @@
   <div class="spot-dots" id="spot-dots"></div>
 </div>
 
-
+<!--/HOME_ONLY-->
 
 <!-- CATEGORY FILTER -->
 <div class="section" id="shop">
@@ -110,7 +89,7 @@
 <!-- PRODUCT LIST -->
 <div class="section" style="padding-top:0">
   <div class="list-bar">
-    <div class="count-text"><span id="count">—</span> items — <span id="cat-label">All products</span></div>
+    <div class="count-text"><span id="count">{{COUNT}}</span> items — <span id="cat-label">{{CAT_LABEL}}</span></div>
     <select class="sort-select" id="sort-select" onchange="applySort()">
       <option value="default">Sort: Default</option>
       <option value="price-asc">Price: Low to High</option>
@@ -119,7 +98,7 @@
     </select>
   </div>
   <div id="product-grid">
-    <div class="loading-state"><div class="spinner"></div><span>Loading products...</span></div>
+    {{GRID}}
   </div>
 </div>
 

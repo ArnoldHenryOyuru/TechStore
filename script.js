@@ -1,57 +1,14 @@
-const WA = '256750533222';
-const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTf_4ROfEofmZST8sC1b4XaDVF8RIddYuS2vaPDgcrxYlsrYvegbit_llsaZcWVvFv7w92tDAqO5Kof/pub?gid=213782715&single=true&output=csv';
+// Shared helpers (CSV parsing, slugs, card markup) live in ts-shared.js so the
+// prerendered pages made by build.js and the live page always match.
+const { WA, SHEET_CSV, parseCSV, imgTag, formatPrice, savings, esc, cardHTML, waIcon, orderMessage } = TS;
 
-const CAT_ICONS = {phones:'📱',laptops:'💻',audio:'🎧',accessories:'🔌',gaming:'🎮',wearables:'⌚'};
+// Category pages (/phones/ etc.) set <body data-cat="phones">
+const INITIAL_CAT = document.body.dataset.cat || 'all';
 
 let products = [];
 let currentCat = 'all';
 let savedItems = [];
 let currentList = [];
-
-// Parse CSV text into array of objects
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
-  return lines.slice(1).map(line => {
-    const vals = [];
-    let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      if (line[i] === '"') { inQ = !inQ; continue; }
-      if (line[i] === ',' && !inQ) { vals.push(cur.trim()); cur = ''; continue; }
-      cur += line[i];
-    }
-    vals.push(cur.trim());
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = (vals[i] || '').replace(/^"|"$/g,'').trim());
-    return obj;
-  }).filter(r => r.name && r.category);
-}
-
-// Convert Google Drive share link to direct image URL
-function driveUrl(url) {
-  if (!url) return '';
-  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-  if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w400`;
-  return url;
-}
-
-function imgTag(url, cat, cls='') {
-  const src = driveUrl(url);
-  const icon = CAT_ICONS[cat] || '📦';
-  if (src) {
-    return `<img src="${src}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" class="${cls}"><span class="emoji-fallback" style="display:none">${icon}</span>`;
-  }
-  return `<span class="emoji-fallback">${icon}</span>`;
-}
-
-function formatPrice(n) {
-  return 'UGX ' + Number(n).toLocaleString();
-}
-
-function savings(p) {
-  if (!p.old_price || !p.price) return null;
-  return Math.round((1 - Number(p.price) / Number(p.old_price)) * 100);
-}
 
 let spotlightItems = [];
 let spotlightIdx = 0;
@@ -63,9 +20,11 @@ function buildSpotlightItems() {
 }
 
 function renderSpotlight() {
+  const box = document.getElementById('spotlight');
+  if (!box) return; // not on this page (category pages have no spotlight)
   buildSpotlightItems();
   if (spotlightItems.length === 0) {
-    document.getElementById('spotlight').style.display = 'none';
+    box.style.display = 'none';
     return;
   }
   spotlightIdx = 0;
@@ -82,8 +41,8 @@ function renderSpotlightSlide() {
     <div class="spot-slide">
       <div class="spot-label">FEATURED&nbsp;PICKS</div>
       <div class="spot-text">
-        <h2 class="spot-name">${p.brand} ${p.name}</h2>
-        <p class="spot-spec">${p.spec || ''}</p>
+        <h2 class="spot-name">${esc(p.brand)} ${esc(p.name)}</h2>
+        <p class="spot-spec">${esc(p.spec)}</p>
         <div class="spot-price-row">
           <span class="spot-price">${formatPrice(p.price)}</span>
           ${p.old_price ? `<span class="spot-old-price">${formatPrice(p.old_price)}</span>` : ''}
@@ -94,7 +53,7 @@ function renderSpotlightSlide() {
           <button class="spot-btn-ghost" onclick="orderWA(${idx})">Ask about this on WhatsApp</button>
         </div>
       </div>
-      <div class="spot-img">${imgTag(p.image_url, p.category)}</div>
+      <div class="spot-img">${imgTag(p)}</div>
     </div>`;
   document.querySelectorAll('.spot-dot').forEach((d, i) => d.classList.toggle('active', i === spotlightIdx));
 }
@@ -140,26 +99,33 @@ async function loadProducts() {
     const text = await res.text();
     products = parseCSV(text);
     currentList = [...products];
-    renderProducts(products);
+    if (INITIAL_CAT !== 'all') filterCat(INITIAL_CAT, null);
+    else renderProducts(products);
     renderHeroCards();
     renderSpotlight();
   } catch (e) {
-    document.getElementById('product-grid').innerHTML = `<div class="error-state"><div style="font-size:2rem">⚠️</div><p>Could not load products. Check your internet connection and try refreshing.</p></div>`;
-    document.getElementById('hero-cards').innerHTML = '';
+    // If the prerendered products are already on the page, keep them instead of showing an error.
+    if (!document.querySelector('#product-grid .products')) {
+      document.getElementById('product-grid').innerHTML = `<div class="error-state"><div style="font-size:2rem">⚠️</div><p>Could not load products. Check your internet connection and try refreshing.</p></div>`;
+    }
+    const hc = document.getElementById('hero-cards');
+    if (hc) hc.innerHTML = '';
   }
 }
 
 function renderHeroCards() {
+  const el = document.getElementById('hero-cards');
+  if (!el) return; // not on this page
   const top = products.filter(p => p.badge === 'hot' || p.badge === 'new' || p.badge === 'sale').slice(0, 3);
   const show = top.length >= 3 ? top : products.slice(0, 3);
-  document.getElementById('hero-cards').innerHTML = show.map((p) => `
+  el.innerHTML = show.map((p) => `
     <div class="feat-card" onclick="openModal(${products.indexOf(p)})">
-      <div class="feat-icon">${imgTag(p.image_url, p.category)}</div>
+      <div class="feat-icon">${imgTag(p)}</div>
       <div class="feat-info">
-        <div class="feat-name">${p.brand} ${p.name}</div>
+        <div class="feat-name">${esc(p.brand)} ${esc(p.name)}</div>
         <div class="feat-price">${formatPrice(p.price)}</div>
       </div>
-      ${p.badge ? `<div class="feat-badge ${p.badge}">${p.badge}</div>` : ''}
+      ${p.badge ? `<div class="feat-badge ${esc(p.badge)}">${esc(p.badge)}</div>` : ''}
     </div>`).join('');
 }
 
@@ -173,32 +139,7 @@ function renderProducts(list) {
   }
   grid.innerHTML = `<div class="products">${list.map((p) => {
     const idx = products.indexOf(p);
-    const saved = savedItems.includes(idx);
-    const pct = savings(p);
-    return `
-    <div class="card" onclick="openModal(${idx})">
-      <div class="card-img">
-        ${p.badge ? `<div class="badge ${p.badge}">${p.badge}</div>` : ''}
-        <button class="wish-btn ${saved?'active':''}" onclick="event.stopPropagation();toggleSave(${idx},this)">${saved?'❤️':'🤍'}</button>
-        ${imgTag(p.image_url, p.category)}
-      </div>
-      <div class="card-body">
-        <div class="card-brand">${p.brand}</div>
-        <div class="card-name">${p.name}</div>
-        <div class="card-spec">${p.spec}</div>
-        <div class="card-footer">
-          <div class="price-wrap">
-            <span class="price">${formatPrice(p.price)}</span>
-            ${p.old_price ? `<span class="old-price">${formatPrice(p.old_price)}</span>` : ''}
-            ${pct ? `<span class="savings">Save ${pct}%</span>` : ''}
-          </div>
-          <button class="order-btn" onclick="event.stopPropagation();orderWA(${idx})">
-            <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.553 4.116 1.523 5.847L.057 23.03a1 1 0 001.23 1.23l5.183-1.466A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.96 0-3.793-.5-5.39-1.376l-.383-.216-3.973 1.124 1.124-3.973-.216-.383A9.955 9.955 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
-            Order
-          </button>
-        </div>
-      </div>
-    </div>`;
+    return cardHTML(p, { interactive: true, idx, saved: savedItems.includes(idx) });
   }).join('')}</div>`;
 }
 
@@ -267,9 +208,9 @@ function updateCartSheet() {
     const p = products[idx];
     total += Number(p.price);
     return `<div class="cart-item">
-      <div class="ci-icon">${imgTag(p.image_url, p.category)}</div>
+      <div class="ci-icon">${imgTag(p)}</div>
       <div class="ci-info">
-        <div class="ci-name">${p.brand} ${p.name}</div>
+        <div class="ci-name">${esc(p.brand)} ${esc(p.name)}</div>
         <div class="ci-price">${formatPrice(p.price)}</div>
       </div>
       <button class="ci-remove" onclick="toggleSaveFromCart(${idx})">✕</button>
@@ -301,8 +242,7 @@ function orderCartOnWA() {
 }
 
 function orderWA(idx) {
-  const p = products[idx];
-  openWA(`Hi TechStore! I'd like to order the *${p.brand} ${p.name}* (${p.spec}) priced at ${formatPrice(p.price)}. Please confirm availability and delivery details. Thank you!`);
+  openWA(orderMessage(products[idx]));
 }
 
 function openWA(msg) {
@@ -313,10 +253,10 @@ function openModal(idx) {
   const p = products[idx];
   const pct = savings(p);
   document.getElementById('modal-content').innerHTML = `
-    <div class="modal-img">${imgTag(p.image_url, p.category)}</div>
-    <div class="modal-brand">${p.brand}</div>
-    <div class="modal-name">${p.name}</div>
-    <div class="modal-spec">${p.spec}</div>
+    <div class="modal-img">${imgTag(p)}</div>
+    <div class="modal-brand">${esc(p.brand)}</div>
+    <div class="modal-name">${esc(p.name)}</div>
+    <div class="modal-spec">${esc(p.spec)}</div>
     <div class="modal-price-row">
       <div>
         <div class="modal-price">${formatPrice(p.price)}</div>
@@ -332,9 +272,10 @@ function openModal(idx) {
       <div class="modal-badge-item">🔄 <span>7-day returns</span></div>
     </div>
     <button class="modal-order-btn" onclick="orderWA(${idx})">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.553 4.116 1.523 5.847L.057 23.03a1 1 0 001.23 1.23l5.183-1.466A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.96 0-3.793-.5-5.39-1.376l-.383-.216-3.973 1.124 1.124-3.973-.216-.383A9.955 9.955 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+      ${waIcon(18)}
       Order on WhatsApp
-    </button>`;
+    </button>
+    <a class="modal-more" href="/p/${p.slug}/">View full details page →</a>`;
   document.getElementById('modal-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -344,6 +285,10 @@ function closeModal(e) {
   document.getElementById('modal-overlay').classList.remove('open');
   document.body.style.overflow = '';
 }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal(null);
+});
 
 function scrollToShop() {
   document.getElementById('shop').scrollIntoView({behavior:'smooth'});

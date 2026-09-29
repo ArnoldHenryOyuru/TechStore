@@ -263,3 +263,44 @@ footer{background:var(--surface);border-top:1px solid var(--border-light);paddin
   .hero h1{font-size:2rem}
   .wa-nav-btn span{display:none}
 }
+
+/* ===== SEO PAGES (category + product pages) ===== */
+.card-name a{color:inherit;text-decoration:none}
+.card-name a:hover{color:var(--accent-dark)}
+a.order-btn,a.chip{text-decoration:none}
+.modal-more{display:block;text-align:center;margin-top:0.9rem;font-size:0.82rem;font-weight:600;color:var(--accent-dark);text-decoration:none}
+.modal-more:hover{text-decoration:underline}
+
+.crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:0.78rem;color:var(--muted);margin-bottom:1rem}
+.crumbs a{color:var(--muted);text-decoration:none}
+.crumbs a:hover{color:var(--text)}
+
+.cat-hero{max-width:1100px;margin:0 auto;padding:2.5rem 2rem 0.5rem}
+.cat-hero h1{font-size:2.4rem;font-weight:700;letter-spacing:-0.04em;line-height:1.1;margin-bottom:0.6rem}
+.cat-hero p{font-size:1rem;color:var(--muted);line-height:1.65;max-width:640px;letter-spacing:-0.01em}
+
+.pdp{max-width:1100px;margin:0 auto;padding:2rem 2rem 1rem}
+.pdp-grid{display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start}
+.pdp-img{background:var(--surface);border:1px solid var(--border-light);border-radius:var(--r);height:420px;display:flex;align-items:center;justify-content:center;font-size:6rem;overflow:hidden;position:relative}
+.pdp-img img{width:100%;height:100%;object-fit:contain}
+.pdp-img .emoji-fallback{font-size:6rem}
+.pdp-info .modal-name{font-size:2rem;margin:4px 0 10px}
+.pdp-info .modal-order-btn{text-decoration:none}
+.pdp-note{font-size:0.75rem;color:var(--muted);margin-top:0.8rem;line-height:1.5}
+.pdp-stock{font-size:0.8rem;font-weight:600;color:var(--red);margin-bottom:1rem}
+.pdp-about{margin-top:2.2rem;background:var(--surface);border:1px solid var(--border-light);border-radius:var(--r);padding:1.4rem 1.5rem}
+.pdp-about h2{font-size:1.05rem;font-weight:700;letter-spacing:-0.03em;margin-bottom:0.5rem}
+.pdp-about p{font-size:0.88rem;color:var(--text2);line-height:1.7}
+.pdp-related{margin-top:2.2rem}
+.pdp-related h2{font-size:1.1rem;font-weight:700;letter-spacing:-0.03em;margin-bottom:1rem}
+.pdp-cats{margin-top:2.2rem}
+.pdp-cats h2{font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:0.7rem}
+
+@media(max-width:780px){
+  .cat-hero{padding:1.5rem 1.25rem 0.25rem}
+  .cat-hero h1{font-size:1.9rem}
+  .pdp{padding:1.25rem 1.25rem 0.5rem}
+  .pdp-grid{grid-template-columns:1fr}
+  .pdp-img{height:280px}
+  .pdp-info .modal-name{font-size:1.6rem}
+}
