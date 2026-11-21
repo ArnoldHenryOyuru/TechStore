@@ -1,0 +1,14 @@
+{
+  "name": "techstore",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "node -e \"const fs=require('fs');if(!fs.existsSync('index.html')||!fs.existsSync('shop/index.html')||!fs.existsSync('new-in/index.html')||!fs.existsSync('deals/index.html'))process.exit(1);console.log('Static site ready')\"",
+    "lint": "node --check server.js && node --check build.js && node --check ts-shared.js && node --check script.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

@@ -5,7 +5,10 @@ turns the sheet into plain HTML pages it can read:
 
 | Output | What it is |
 |---|---|
-| `index.html` | Home page with the first 24 products already in the HTML |
+| `index.html` | Curated storefront homepage (flagship bento, search, budget tiers, brand showcase, store info) |
+| `/shop/` | Full searchable & filterable catalogue |
+| `/new-in/` | Newly arrived products + flagship releases |
+| `/deals/` | Discounted items + popular picks under UGX 500k |
 | `/phones/`, `/laptops/`, ... | One page per category (only categories that have products) |
 | `/p/<product-name>/` | One page per product, with Product + Breadcrumb structured data |
 | `sitemap.xml`, `robots.txt` | For Google |
@@ -19,12 +22,12 @@ Or let GitHub do it: `.github/workflows/build.yml` rebuilds daily and on demand
 (Actions tab, then "Run workflow").
 
 Edit **`index.template.html`** (page layout) and **`build.js`** (category text in `CATS`), never the
-generated `index.html`, `p/`, or category folders, because those get overwritten.
+generated `index.html`, `shop/`, `p/`, or category folders, because those get overwritten.
 
 ## Sheet columns
 Required: `name, category, brand, spec, price, old_price, image_url, badge`.
 Optional: `stock`. Put `out of stock` (or `0`, `no`, `sold out`) to mark an item unavailable.
-Categories must match `phones, laptops, audio, accessories, gaming, wearables`.
+Categories must match `phones, laptops, audio, accessories, tablets, gaming, wearables`.
 
 ## Testing locally
 Pages use absolute paths (`/style.css`), so open them through a server rather than by double-click:
