@@ -386,13 +386,253 @@
     return combined.slice(0, limit);
   }
 
+  const DELIVERY_ZONES = [
+    {
+      id: 'ttowa-pickup',
+      name: 'Ttowa Mall Pickup (Kampala CBD)',
+      group: 'Store Pickup',
+      feeLabel: 'Free (UGX 0)',
+      timing: 'Ready in 15–30 mins after confirmation',
+      cutoff: 'Mon – Sat · 8:30 AM – 7:30 PM',
+      payment: 'Inspect in person · Pay via MTN MoMo, Airtel Money, or Cash'
+    },
+    {
+      id: 'kampala-cbd',
+      name: 'Kampala Central & CBD (Nakasero, Kololo, Wandegeya, Old Kampala)',
+      group: 'Kampala Inner',
+      feeLabel: 'UGX 5,000',
+      timing: 'Same day (1–3 hours)',
+      cutoff: 'Confirm by 6:30 PM Mon–Sat for same-day rider',
+      payment: 'Pay on delivery · MTN MoMo, Airtel Money, or Cash'
+    },
+    {
+      id: 'kampala-suburbs',
+      name: 'Kampala Suburbs (Ntinda, Bukoto, Bugolobi, Nakawa, Muyenga, Munyonyo, Makindye, Naalya, Lubowa, Kawempe, Rubaga)',
+      group: 'Kampala Inner',
+      feeLabel: 'UGX 8,000 – 12,000',
+      timing: 'Same day (2–4 hours)',
+      cutoff: 'Confirm by 6:00 PM Mon–Sat for same-day rider',
+      payment: 'Pay on delivery · MTN MoMo, Airtel Money, or Cash'
+    },
+    {
+      id: 'greater-kampala',
+      name: 'Greater Kampala (Entebbe, Mukono, Wakiso, Kira, Gayaza, Kajjansi, Nansana, Seeta)',
+      group: 'Greater Kampala',
+      feeLabel: 'UGX 15,000 – 20,000',
+      timing: 'Same day (3–5 hours)',
+      cutoff: 'Confirm by 4:30 PM Mon–Sat for same-day dispatch',
+      payment: 'Pay on delivery · MTN MoMo, Airtel Money, or Cash'
+    },
+    {
+      id: 'central-east-near',
+      name: 'Jinja, Masaka, Luwero, Mityana & Iganga',
+      group: 'Upcountry Uganda',
+      feeLabel: 'UGX 20,000',
+      timing: 'Next day (1–2 days via trusted courier)',
+      cutoff: 'Confirm by 3:00 PM for next-morning parcel dispatch',
+      payment: 'Mobile Money confirmation prior to courier dispatch'
+    },
+    {
+      id: 'upcountry-major',
+      name: 'Mbarara, Gulu, Mbale, Lira, Fort Portal, Hoima, Arua, Kabale, Kasese & Soroti',
+      group: 'Upcountry Uganda',
+      feeLabel: 'UGX 25,000 – 30,000',
+      timing: '1–3 days via regional courier',
+      cutoff: 'Confirm by 3:00 PM for next-day dispatch with waybill',
+      payment: 'Mobile Money confirmation prior to courier dispatch'
+    }
+  ];
+
+  function deliveryCheckMessage(zone) {
+    const z = zone || DELIVERY_ZONES[1];
+    return [
+      'Hi TechStore! I\'d like to confirm delivery timing:',
+      '',
+      '*Destination:* ' + z.name,
+      '*Estimated Fee:* ' + z.feeLabel,
+      '*Item(s) of interest:* ',
+      '*Preferred Time:* Today / Tomorrow'
+    ].join('\n');
+  }
+
+  function warrantySupportMessage(data) {
+    const d = data || {};
+    const lines = [
+      'Hi TechStore Support! I need help with a warranty / return request:',
+      '',
+      '*Product:* ' + String(d.product || '').trim(),
+      '*Purchase Window:* ' + String(d.timing || 'Within 7 days').trim(),
+      '*Request Type:* ' + String(d.issueType || 'Inspection / return').trim()
+    ];
+    if (d.details && String(d.details).trim()) {
+      lines.push('*Details:* ' + String(d.details).trim());
+    }
+    lines.push('', 'Please advise on the next step at Ttowa Mall or pickup.');
+    return lines.join('\n');
+  }
+
+  function tradeInMessage(data) {
+    const d = data || {};
+    const currentLabel = [d.currentBrand, d.currentModel, d.currentStorage].filter(Boolean).join(' ').trim();
+    const lines = [
+      'Hi TechStore! I\'d like a trade-in / swap estimate:',
+      '',
+      '*Current Device:* ' + (currentLabel || 'Not specified'),
+      '*Condition:* ' + String(d.condition || 'Good').trim()
+    ];
+    if (d.batteryOrNotes && String(d.batteryOrNotes).trim()) {
+      lines.push('*Battery / Notes:* ' + String(d.batteryOrNotes).trim());
+    }
+    if (Array.isArray(d.extras) && d.extras.length) {
+      lines.push('*Included:* ' + d.extras.join(', '));
+    }
+    if (d.targetDevice && String(d.targetDevice).trim()) {
+      lines.push('*Upgrading To:* ' + String(d.targetDevice).trim());
+    }
+    lines.push(
+      '*Handover:* ' + String(d.visitMode || 'Ttowa Mall inspection').trim(),
+      '',
+      'Please share an estimated swap value and top-up range.'
+    );
+    return lines.join('\n');
+  }
+
+  function classifyAddonBucket(p) {
+    const hay = ((p.name || '') + ' ' + (p.spec || '')).toLowerCase();
+    if (/power\s?bank|battery\s?pack|jumpstart|mah\b/.test(hay)) return 'powerbank';
+    if (/charger|adapter|gan\b|cable|magsafe|wireless\s?charg|charging\s?pad|plug|dock|hub/.test(hay)) return 'charging';
+    if (/case|cover|guard|protector|sleeve|bag|pouch|strap|band|folio/.test(hay)) return 'protection';
+    if (p.category === 'audio' || /airpods|earbuds|earphone|headphone|buds|speaker|mic/.test(hay)) return 'audio';
+    if (/airtag|smart\s?tag|tracker|mouse|keyboard|pencil|stylus|controller|stand|tripod|ssd|flash/.test(hay)) return 'utility';
+    if (p.category === 'accessories') return 'charging';
+    return p.category || 'other';
+  }
+
+  const PAIRING_BRANDS = new Set([
+    'anker', 'powerology', 'apple', 'samsung', 'jbl', 'porodo', 'green lion', 'logitech', 'baseus', 'ugreen', 'sony', 'bose'
+  ]);
+
+  function pickPairings(primaryOrList, allProducts, limit, excludeSlugs) {
+    const maxItems = limit || 4;
+    const primaries = (Array.isArray(primaryOrList) ? primaryOrList : [primaryOrList]).filter(Boolean);
+    if (!primaries.length || !Array.isArray(allProducts) || !allProducts.length) return [];
+
+    const excluded = new Set(excludeSlugs || []);
+    primaries.forEach(function (item) {
+      if (item && item.slug) excluded.add(item.slug);
+    });
+
+    const primaryCats = new Set(primaries.map(function (p) { return (p.category || '').toLowerCase(); }));
+    const primaryBrands = new Set(primaries.map(function (p) { return (p.brand || '').toLowerCase(); }).filter(Boolean));
+    const maxPrimaryPrice = primaries.reduce(function (m, p) { return Math.max(m, Number(p.price) || 0); }, 0);
+    const isApple = primaryBrands.has('apple') || primaries.some(function (p) { return /iphone|ipad|macbook|airpods|apple watch/i.test(p.name || ''); });
+    const isSamsung = primaryBrands.has('samsung') || primaries.some(function (p) { return /galaxy|samsung/i.test(p.name || ''); });
+
+    let desiredBuckets = ['charging', 'powerbank', 'audio', 'protection'];
+    if (primaryCats.has('laptops')) {
+      desiredBuckets = ['charging', 'utility', 'audio', 'powerbank'];
+    } else if (primaryCats.has('audio')) {
+      desiredBuckets = ['powerbank', 'charging', 'protection', 'utility'];
+    } else if (primaryCats.has('gaming')) {
+      desiredBuckets = ['audio', 'utility', 'charging', 'powerbank'];
+    } else if (primaryCats.has('wearables')) {
+      desiredBuckets = ['charging', 'protection', 'audio', 'powerbank'];
+    } else if (primaryCats.size === 1 && primaryCats.has('accessories')) {
+      const primaryBucket = classifyAddonBucket(primaries[0]);
+      desiredBuckets = ['charging', 'powerbank', 'audio', 'utility'].filter(function (b) { return b !== primaryBucket; });
+      desiredBuckets.push('protection');
+    }
+
+    const candidates = allProducts.filter(function (c) {
+      if (!c || !c.slug || excluded.has(c.slug)) return false;
+      if (!inStock(c) || !hasRealPhoto(c) || !(Number(c.price) > 0)) return false;
+      if (c.category === 'phones' || c.category === 'laptops' || c.category === 'tablets') return false;
+      const hay = (c.name || '').toLowerCase();
+      // Prevent recommending a specific model case for a mismatched device brand
+      if (/case|cover|guard|protector/.test(hay)) {
+        if (isApple && /samsung|galaxy|pixel|tecno|infinix|redmi|xiaomi/.test(hay)) return false;
+        if (isSamsung && /iphone|ipad|apple|airpods|macbook/.test(hay)) return false;
+        if (!isApple && !isSamsung && /iphone|airpods|apple watch|galaxy/.test(hay)) return false;
+      }
+      if (/lightning/.test(hay) && !isApple) return false;
+      if (/apple pencil/.test(hay) && !primaryCats.has('tablets')) return false;
+      if (/airtag/.test(hay) && !isApple) return false;
+      return true;
+    });
+
+    const scored = candidates.map(function (c) {
+      const bucket = classifyAddonBucket(c);
+      const bLower = (c.brand || '').toLowerCase();
+      const hay = ((c.name || '') + ' ' + (c.spec || '')).toLowerCase();
+      let score = 0;
+
+      const bucketRank = desiredBuckets.indexOf(bucket);
+      if (bucketRank >= 0) score += (40 - bucketRank * 6);
+      if (primaryBrands.has(bLower)) score += 26;
+      if (PAIRING_BRANDS.has(bLower)) score += 12;
+
+      if (primaryCats.has('laptops')) {
+        if (/45w|65w|67w|100w|140w|gan|hub|adapter|mouse|keyboard|bag|sleeve/.test(hay)) score += 24;
+        if (/20w/.test(hay)) score -= 12;
+      } else if (primaryCats.has('phones') || primaryCats.has('tablets')) {
+        if (/20w|25w|30w|45w|65w|magsafe|usb-c|pd\b|power\s?bank|earbuds|airpods|buds/.test(hay)) score += 18;
+      } else if (primaryCats.has('gaming')) {
+        if (/controller|headset|earphone|speaker|charging|cable/.test(hay)) score += 20;
+      }
+
+      // Keep add-ons sensibly priced relative to main item (unless main item is inexpensive)
+      const cap = maxPrimaryPrice > 300000 ? Math.min(maxPrimaryPrice * 0.45, 750000) : 350000;
+      if (c.price <= cap) score += 16;
+      else score -= 18;
+
+      if (c.price >= 25000 && c.price <= 280000) score += 8;
+      if (/jumpstart/.test(hay)) score -= 35;
+
+      return { item: c, bucket: bucket, score: score };
+    });
+
+    scored.sort(function (a, b) {
+      return b.score - a.score || a.item.price - b.item.price;
+    });
+
+    const picked = [];
+    const usedSlugs = new Set();
+    const usedBuckets = new Set();
+
+    // First pass: take highest-scoring item from each desired bucket for variety
+    for (let i = 0; i < desiredBuckets.length && picked.length < maxItems; i++) {
+      const targetBucket = desiredBuckets[i];
+      const match = scored.find(function (entry) {
+        return entry.bucket === targetBucket && !usedSlugs.has(entry.item.slug);
+      });
+      if (match) {
+        picked.push(match.item);
+        usedSlugs.add(match.item.slug);
+        usedBuckets.add(targetBucket);
+      }
+    }
+
+    // Second pass: fill any remaining slots by top score
+    for (let i = 0; i < scored.length && picked.length < maxItems; i++) {
+      const entry = scored[i];
+      if (!usedSlugs.has(entry.item.slug)) {
+        picked.push(entry.item);
+        usedSlugs.add(entry.item.slug);
+      }
+    }
+
+    return picked;
+  }
+
   return {
     WA: WA, SHEET_CSV: SHEET_CSV, CAT_ICONS: CAT_ICONS, CAT_LABELS: CAT_LABELS, PRICE_TIERS: PRICE_TIERS,
-    BAD_IMAGE_URLS: BAD_IMAGE_URLS,
+    BAD_IMAGE_URLS: BAD_IMAGE_URLS, DELIVERY_ZONES: DELIVERY_ZONES,
     esc: esc, toNum: toNum, inStock: inStock, hasRealPhoto: hasRealPhoto, matchesPriceTier: matchesPriceTier,
     parseCSV: parseCSV, slugify: slugify, fullName: fullName, displayBrand: displayBrand, displayTitle: displayTitle, assignSlugs: assignSlugs,
     driveUrl: driveUrl, imgTag: imgTag, formatPrice: formatPrice, savings: savings,
-    waIcon: waIcon, waLink: waLink, productUrl: productUrl, orderMessage: orderMessage, cartOrderMessage: cartOrderMessage, trustItemsHTML: trustItemsHTML, sortPhotoFirst: sortPhotoFirst,
+    waIcon: waIcon, waLink: waLink, productUrl: productUrl, orderMessage: orderMessage, cartOrderMessage: cartOrderMessage,
+    deliveryCheckMessage: deliveryCheckMessage, warrantySupportMessage: warrantySupportMessage, tradeInMessage: tradeInMessage,
+    trustItemsHTML: trustItemsHTML, sortPhotoFirst: sortPhotoFirst, pickPairings: pickPairings,
     cardHTML: cardHTML, curateNewIn: curateNewIn, curateDeals: curateDeals
   };
 });

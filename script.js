@@ -1,8 +1,9 @@
 // Shared helpers (CSV parsing, slugs, stock checks, price tiers, card markup) live in ts-shared.js
 // so pre-rendered pages from build.js and live JS interactions stay identical.
-const { WA, SHEET_CSV, CAT_LABELS, parseCSV, imgTag, formatPrice, savings, esc, fullName, displayBrand, displayTitle, inStock, hasRealPhoto, matchesPriceTier, trustItemsHTML, sortPhotoFirst, cardHTML, waIcon, orderMessage, cartOrderMessage, curateNewIn, curateDeals } = TS;
+const { WA, SHEET_CSV, CAT_LABELS, DELIVERY_ZONES, parseCSV, imgTag, formatPrice, savings, esc, fullName, displayBrand, displayTitle, inStock, hasRealPhoto, matchesPriceTier, trustItemsHTML, sortPhotoFirst, pickPairings, cardHTML, waIcon, waLink, orderMessage, cartOrderMessage, deliveryCheckMessage, warrantySupportMessage, tradeInMessage, curateNewIn, curateDeals } = TS;
 
 const PAGE_MODE = document.body.dataset.page || 'catalog';
+const SERVICE_MODE = document.body.dataset.service || '';
 const INITIAL_CAT = document.body.dataset.cat || 'all';
 const COLLECTION_MODE = document.body.dataset.collection || '';
 const STORAGE_KEY = 'techstore_saved_v1';
@@ -485,6 +486,7 @@ function toggleSaveBySlug(slug, btn) {
   updateCartBadge();
   updateCartSheet();
   syncPDPSaveButton();
+  syncAddonButtons();
 }
 
 function toggleSaveFromPDP(btn) {
@@ -503,9 +505,55 @@ function toggleSaveFromPDP(btn) {
     updateCartBadge();
     updateCartSheet();
     syncPDPSaveButton();
+    syncAddonButtons();
   } catch {
     // Ignore malformed payload
   }
+}
+
+function toggleAddonFromBtn(btn) {
+  try {
+    const raw = btn.getAttribute('data-product');
+    const snapshot = raw ? JSON.parse(raw) : null;
+    if (!snapshot || !snapshot.slug) return;
+    if (isSlugSaved(snapshot.slug)) {
+      savedItems = savedItems.filter(item => item.slug !== snapshot.slug);
+      showToast('Removed from saved items');
+    } else {
+      savedItems.push(toSavedSnapshot(snapshot));
+      showToast('Added to saved items →');
+    }
+    persistSavedItems();
+    updateCartBadge();
+    updateCartSheet();
+    syncPDPSaveButton();
+    syncAddonButtons();
+  } catch {
+    // Ignore malformed payload
+  }
+}
+
+function addCartAddon(slug) {
+  const p = findProduct(slug);
+  if (!p) return;
+  if (!isSlugSaved(p.slug)) {
+    savedItems.push(toSavedSnapshot(p));
+    persistSavedItems();
+    updateCartBadge();
+    updateCartSheet();
+    syncPDPSaveButton();
+    syncAddonButtons();
+    showToast('Added ' + displayTitle(p));
+  }
+}
+
+function syncAddonButtons() {
+  document.querySelectorAll('.pair-add-btn[data-slug]').forEach(btn => {
+    const saved = isSlugSaved(btn.getAttribute('data-slug'));
+    btn.textContent = saved ? 'Added ✓' : '+ Add';
+    btn.classList.toggle('is-added', saved);
+    btn.setAttribute('aria-pressed', saved ? 'true' : 'false');
+  });
 }
 
 function syncPDPSaveButton() {
@@ -539,6 +587,43 @@ function updateCartQty(slug, delta) {
   updateCartSheet();
 }
 
+function renderCartAddons() {
+  const box = document.getElementById('cart-addons');
+  if (!box) return;
+  if (savedItems.length === 0) {
+    box.hidden = true;
+    box.innerHTML = '';
+    return;
+  }
+  if (!products.length) {
+    ensureProductsLoaded().then(() => {
+      if (savedItems.length > 0) renderCartAddons();
+    }).catch(() => {});
+    return;
+  }
+  const suggestions = pickPairings(savedItems, products, 3, savedItems.map(i => i.slug));
+  if (!suggestions.length) {
+    box.hidden = true;
+    box.innerHTML = '';
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML = `
+    <div class="cart-addons-hdr">Pairs well with your order</div>
+    <div class="cart-addons-list">
+      ${suggestions.map(a => `
+        <div class="cart-addon-row">
+          <a class="cart-addon-thumb" href="/p/${a.slug}/">${imgTag(a, '', 160)}</a>
+          <div class="cart-addon-info">
+            <a class="cart-addon-name" href="/p/${a.slug}/">${esc(displayTitle(a))}</a>
+            <div class="cart-addon-price">${formatPrice(a.price)}</div>
+          </div>
+          <button type="button" class="cart-addon-btn" onclick="addCartAddon('${esc(a.slug)}')">+ Add</button>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
 function updateCartSheet() {
   const container = document.getElementById('cart-items');
   const footer = document.getElementById('cart-footer');
@@ -546,6 +631,7 @@ function updateCartSheet() {
   if (savedItems.length === 0) {
     container.innerHTML = `<div class="cart-empty"><div class="cart-empty-icon">🛒</div><p>No saved items yet.<br>Tap 🤍 on a product to save it.</p></div>`;
     footer.style.display = 'none';
+    renderCartAddons();
     return;
   }
   footer.style.display = 'block';
@@ -571,6 +657,7 @@ function updateCartSheet() {
     </div>`;
   }).join('');
   document.getElementById('cart-total').textContent = formatPrice(total);
+  renderCartAddons();
 }
 
 function toggleSaveFromCart(slug) {
@@ -579,6 +666,7 @@ function toggleSaveFromCart(slug) {
   updateCartBadge();
   updateCartSheet();
   syncPDPSaveButton();
+  syncAddonButtons();
   if (PAGE_MODE === 'home' && products.length) {
     selectHomeBrand(activeHomeBrand, null);
     hydrateHomeNewIn();
@@ -624,7 +712,7 @@ function openHeaderWA() {
     openWA(cartOrderMessage(savedItems));
     return;
   }
-  openWA('Hi TechStore, I\'m browsing TechStore and would like help confirming stock and Kampala delivery.');
+  openWA('Hi TechStore! I\'m browsing TechStore and would like help confirming stock and Kampala delivery.');
 }
 
 function orderWABySlug(slug) {
@@ -723,13 +811,219 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2200);
 }
 
+/* ---------- Dedicated Service Pages (Delivery, Warranty, Trade-In) ---------- */
+function setupServicePage() {
+  if (SERVICE_MODE === 'delivery') {
+    const select = document.getElementById('delivery-zone-select');
+    const feeEl = document.getElementById('dz-fee');
+    const timingEl = document.getElementById('dz-timing');
+    const cutoffEl = document.getElementById('dz-cutoff');
+    const paymentEl = document.getElementById('dz-payment');
+    const waBtn = document.getElementById('delivery-wa-btn');
+    if (!select) return;
+    function syncZone() {
+      const zone = DELIVERY_ZONES.find(z => z.id === select.value) || DELIVERY_ZONES[1];
+      if (feeEl) feeEl.textContent = zone.feeLabel;
+      if (timingEl) timingEl.textContent = zone.timing;
+      if (cutoffEl) cutoffEl.textContent = zone.cutoff;
+      if (paymentEl) paymentEl.textContent = zone.payment;
+      if (waBtn) waBtn.href = waLink(deliveryCheckMessage(zone));
+    }
+    select.addEventListener('change', syncZone);
+    syncZone();
+    return;
+  }
+
+  if (SERVICE_MODE === 'warranty') {
+    const form = document.getElementById('warranty-form');
+    const productEl = document.getElementById('wf-product');
+    const timingEl = document.getElementById('wf-timing');
+    const typeEl = document.getElementById('wf-type');
+    const detailsEl = document.getElementById('wf-details');
+    const errEl = document.getElementById('wf-error');
+    if (!form || !productEl) return;
+    productEl.addEventListener('input', () => {
+      if (errEl) errEl.hidden = true;
+    });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const prodVal = productEl.value.trim();
+      if (!prodVal) {
+        if (errEl) {
+          errEl.textContent = 'Please enter the product name so our desk can assist you quickly.';
+          errEl.hidden = false;
+        }
+        productEl.focus();
+        return;
+      }
+      if (errEl) errEl.hidden = true;
+      const msg = warrantySupportMessage({
+        product: prodVal,
+        timing: timingEl ? timingEl.value : 'Within 7 days',
+        issueType: typeEl ? typeEl.value : 'Faulty / hardware issue',
+        details: detailsEl ? detailsEl.value.trim() : ''
+      });
+      openWA(msg);
+    });
+    return;
+  }
+
+  if (SERVICE_MODE === 'trade-in') {
+    const form = document.getElementById('tradein-form');
+    const brandEl = document.getElementById('ti-brand');
+    const modelEl = document.getElementById('ti-model');
+    const notesEl = document.getElementById('ti-notes');
+    const targetEl = document.getElementById('ti-target');
+    const targetResults = document.getElementById('ti-target-results');
+    const handoverEl = document.getElementById('ti-handover');
+    const submitBtn = document.getElementById('ti-submit-btn');
+    const errEl = document.getElementById('ti-error');
+    const sumDevice = document.getElementById('ti-sum-device');
+    const sumCond = document.getElementById('ti-sum-cond');
+    const sumExtras = document.getElementById('ti-sum-extras');
+    const sumTarget = document.getElementById('ti-sum-target');
+    if (!form || !brandEl || !modelEl) return;
+
+    let selectedStorage = '256GB';
+    let selectedCondition = 'Good (light wear, fully working)';
+    let selectedTargetLabel = '';
+
+    function getExtras() {
+      return Array.from(document.querySelectorAll('#ti-extras input:checked')).map(cb => cb.value);
+    }
+
+    function syncSummary() {
+      const b = brandEl.value;
+      const m = modelEl.value.trim();
+      if (sumDevice) {
+        sumDevice.textContent = m ? `${b} ${m} · ${selectedStorage}` : `${b} · Enter model (${selectedStorage})`;
+      }
+      if (sumCond) sumCond.textContent = selectedCondition;
+      const extras = getExtras();
+      if (sumExtras) sumExtras.textContent = extras.length ? extras.join(', ') : 'Device only';
+      const targetTxt = selectedTargetLabel || (targetEl ? targetEl.value.trim() : '');
+      if (sumTarget) sumTarget.textContent = targetTxt || 'Open to recommendations';
+    }
+
+    document.querySelectorAll('#ti-storage-pills .choice-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedStorage = btn.dataset.val || '256GB';
+        document.querySelectorAll('#ti-storage-pills .choice-pill').forEach(b => b.classList.toggle('active', b === btn));
+        syncSummary();
+      });
+    });
+
+    document.querySelectorAll('#ti-cond-grid .cond-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedCondition = btn.dataset.val || 'Good';
+        document.querySelectorAll('#ti-cond-grid .cond-card').forEach(b => b.classList.toggle('active', b === btn));
+        syncSummary();
+      });
+    });
+
+    brandEl.addEventListener('change', syncSummary);
+    modelEl.addEventListener('input', () => {
+      if (errEl) errEl.hidden = true;
+      syncSummary();
+    });
+    if (notesEl) notesEl.addEventListener('input', syncSummary);
+    document.querySelectorAll('#ti-extras input').forEach(cb => cb.addEventListener('change', syncSummary));
+
+    if (targetEl && targetResults) {
+      async function renderTargetMatches() {
+        const q = targetEl.value.trim().toLowerCase();
+        selectedTargetLabel = '';
+        syncSummary();
+        if (q.length < 2) {
+          targetResults.hidden = true;
+          targetResults.innerHTML = '';
+          return;
+        }
+        try {
+          await ensureProductsLoaded();
+        } catch {
+          targetResults.hidden = true;
+          return;
+        }
+        const pool = products.filter(p =>
+          inStock(p) &&
+          (p.category === 'phones' || p.category === 'laptops' || p.category === 'tablets' || p.category === 'wearables' || p.category === 'gaming') &&
+          `${p.brand} ${p.name} ${p.spec}`.toLowerCase().includes(q)
+        ).slice(0, 6);
+
+        if (!pool.length) {
+          targetResults.hidden = true;
+          targetResults.innerHTML = '';
+          return;
+        }
+        targetResults.innerHTML = pool.map(p => {
+          const label = fullName(p) + ' (' + formatPrice(p.price) + ')';
+          return `<button type="button" class="target-hit" data-label="${esc(label)}">
+            <span class="target-hit-name">${esc(fullName(p))}${p.spec ? `<small>${esc(p.spec)}</small>` : ''}</span>
+            <span class="target-hit-price">${formatPrice(p.price)}</span>
+          </button>`;
+        }).join('');
+        targetResults.hidden = false;
+
+        targetResults.querySelectorAll('.target-hit').forEach(hit => {
+          hit.addEventListener('click', () => {
+            selectedTargetLabel = hit.getAttribute('data-label') || '';
+            targetEl.value = selectedTargetLabel;
+            targetResults.hidden = true;
+            syncSummary();
+          });
+        });
+      }
+
+      targetEl.addEventListener('input', renderTargetMatches);
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.target-picker-wrap')) targetResults.hidden = true;
+      });
+    }
+
+    function submitTradeIn(e) {
+      if (e) e.preventDefault();
+      const modelVal = modelEl.value.trim();
+      if (!modelVal) {
+        if (errEl) {
+          errEl.textContent = 'Please enter your current device model (for example, iPhone 14 Pro or Galaxy S23).';
+          errEl.hidden = false;
+        }
+        modelEl.focus();
+        return;
+      }
+      if (errEl) errEl.hidden = true;
+      const msg = tradeInMessage({
+        currentBrand: brandEl.value,
+        currentModel: modelVal,
+        currentStorage: selectedStorage,
+        condition: selectedCondition,
+        batteryOrNotes: notesEl ? notesEl.value.trim() : '',
+        extras: getExtras(),
+        targetDevice: selectedTargetLabel || (targetEl ? targetEl.value.trim() : ''),
+        visitMode: handoverEl ? handoverEl.value : 'Ttowa Mall inspection'
+      });
+      openWA(msg);
+    }
+
+    form.addEventListener('submit', submitTradeIn);
+    if (submitBtn) submitBtn.addEventListener('click', submitTradeIn);
+    syncSummary();
+  }
+}
+
 /* ---------- Boot ---------- */
 async function loadProducts() {
   updateCartBadge();
   syncPDPSaveButton();
+  syncAddonButtons();
   setupHeaderSearch();
 
   if (PAGE_MODE === 'product') return;
+  if (PAGE_MODE === 'service') {
+    setupServicePage();
+    return;
+  }
 
   try {
     await ensureProductsLoaded();

@@ -74,6 +74,10 @@
   <a href="/tablets/">Tablets</a>
   <a href="/gaming/">Gaming</a>
   <a href="/wearables/">Wearables</a>
+  <div class="mob-drawer-sep" aria-hidden="true"></div>
+  <a href="/delivery/">Delivery &amp; zones</a>
+  <a href="/warranty/">Warranty &amp; returns</a>
+  <a href="/trade-in/">Trade-in &amp; swaps</a>
   <button type="button" class="mob-wa-btn" onclick="openHeaderWA()">Order on WhatsApp</button>
 </div>
 <!-- /HEADER -->
@@ -171,6 +175,11 @@
             </div>
           </li>
         </ol>
+        <div class="store-policy-links">
+          <a href="/delivery/">Delivery &amp; zones →</a>
+          <a href="/warranty/">7-day warranty →</a>
+          <a href="/trade-in/">Trade-in quote →</a>
+        </div>
       </div>
       <div class="location-panel">
         <div>
@@ -234,10 +243,11 @@
     </div>
     <div class="footer-col">
       <h4>Info</h4>
+      <a href="/delivery/">Delivery &amp; zones</a>
+      <a href="/warranty/">Warranty &amp; returns</a>
+      <a href="/trade-in/">Trade-in &amp; swaps</a>
       <a href="/#visit-store">Visit Ttowa Mall</a>
       <a href="/shop/?price=under-100k">Under UGX 100k</a>
-      <a href="https://wa.me/256750533222?text=Hi%2C%20question%20about%20delivery" target="_blank" rel="noopener">Delivery info</a>
-      <a href="https://wa.me/256750533222?text=Hi%2C%20question%20about%20returns" target="_blank" rel="noopener">Returns &amp; warranty</a>
       <a href="https://wa.me/256750533222?text=Hi%20TechStore%21" target="_blank" rel="noopener">Contact us</a>
     </div>
   </div>
@@ -269,7 +279,10 @@
     <div class="cart-title">Saved items</div>
     <button type="button" class="cart-close" onclick="toggleCart()" aria-label="Close saved items">✕</button>
   </div>
-  <div class="cart-items" id="cart-items"></div>
+  <div class="cart-body">
+    <div class="cart-items" id="cart-items"></div>
+    <div class="cart-addons" id="cart-addons" hidden></div>
+  </div>
   <div class="cart-footer" id="cart-footer" style="display:none">
     <div class="cart-total-row">
       <span class="cart-total-label">Total</span>
