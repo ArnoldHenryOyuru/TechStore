@@ -624,7 +624,7 @@ function openHeaderWA() {
     openWA(cartOrderMessage(savedItems));
     return;
   }
-  openWA('Hi TechStore! I\'m browsing TechStore and would like help confirming stock and Kampala delivery.');
+  openWA('Hi TechStore, I\'m browsing TechStore and would like help confirming stock and Kampala delivery.');
 }
 
 function orderWABySlug(slug) {
